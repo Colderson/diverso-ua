@@ -1,15 +1,12 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCart } from "@/components/cart-provider"
@@ -20,7 +17,7 @@ import { SmsNotification } from "@/components/sms-notification"
 
 export function CheckoutForm() {
   const router = useRouter()
-  const { clearCart } = useCart()
+  const { items, clearCart } = useCart() // <-- отримуємо товари з кошика
   const { t } = useTranslation()
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [smsNotification, setSmsNotification] = useState<{
@@ -30,18 +27,18 @@ export function CheckoutForm() {
 
   const [formData, setFormData] = useState({
     phone: "",
-    smsCode: "",
     paymentMethod: "cod",
     firstName: "",
     lastName: "",
     city: "",
     branch: "",
+    branchAddress: "",
+    branchId: "",
+    branchExternalId: "",
     doNotCall: false,
   })
 
-  const [showSmsInput, setShowSmsInput] = useState(false)
-  const [smsCodeSent, setSmsCodeSent] = useState(false)
-  const [codeVerified, setCodeVerified] = useState(false)
+  const [showWidget, setShowWidget] = useState(false)
 
   const isValidPhone = (phone: string) => {
     return phone.length >= 13 && phone.startsWith("+380")
@@ -55,72 +52,25 @@ export function CheckoutForm() {
     }))
   }
 
-  const handleGetSmsCode = () => {
-    if (!isValidPhone(formData.phone)) {
-      setSmsNotification({
-        message: t("invalidPhone"),
-        type: "error",
-      })
-      return
-    }
-
-    // TO DO: Implement SMS code sending via backend API
-    console.log("Sending SMS to:", formData.phone)
-    setShowSmsInput(true)
-    setSmsCodeSent(true)
-
-    // Show success notification
-    setSmsNotification({
-      message: t("smsSent"),
-      type: "info",
-    })
-  }
-
-  const handleVerifyCode = () => {
-    if (!formData.smsCode) {
-      setSmsNotification({
-        message: t("enterSmsCodePrompt"),
-        type: "error",
-      })
-      return
-    }
-
-    // TO DO: Implement SMS code verification via backend API
-    console.log("Verifying code:", formData.smsCode)
-
-    if (formData.smsCode === "1111") {
-      // Correct code
-      setCodeVerified(true)
-      setSmsNotification({
-        message: t("smsCodeVerified"),
-        type: "success",
-      })
-    } else if (formData.smsCode === "2222") {
-      // Incorrect code
-      setSmsNotification({
-        message: t("smsCodeIncorrect"),
-        type: "error",
-      })
-    } else {
-      // For any other code, treat as incorrect for testing
-      setSmsNotification({
-        message: t("smsCodeIncorrect"),
-        type: "error",
-      })
-    }
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  // Додаємо async функцію для оформлення замовлення
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // TO DO: Send order data to CRM system
-    console.log("Order data:", formData)
-
-    // Show confirmation popup
-    setShowConfirmation(true)
-
-    // Clear cart
-    clearCart()
+    try {
+      const res = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formData, items }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setSmsNotification({ message: data.error || "Помилка при створенні замовлення", type: "error" })
+        return
+      }
+      setShowConfirmation(true)
+      clearCart()
+    } catch (err) {
+      setSmsNotification({ message: "Помилка при створенні замовлення", type: "error" })
+    }
   }
 
   const handleConfirmationClose = () => {
@@ -128,33 +78,37 @@ export function CheckoutForm() {
     router.push("/")
   }
 
-  function openFrame() {
-    const apiKey = "3e9f2e92be7ce375da5f0bf97d48989a"
-    const url = `https://developers.novaposhta.ua/?apiKey=${apiKey}`
-
-    const widgetWindow = window.open(
-      url,
-      "novaPoshtaWidget",
-      "width=820,height=600"
-    )
-
-    // Додаємо слухача для отримання вибраного відділення
-    window.addEventListener("message", (event) => {
-      if (typeof event.data === "string") {
-        try {
-          const data = JSON.parse(event.data)
-          if (data && data.data && data.data.WarehouseDescription) {
-            const branchName = data.data.WarehouseDescription
-            setFormData((prev) => ({
-              ...prev,
-              branch: branchName,
-            }))
-          }
-        } catch (e) {
-          // Некоректна відповідь від віджета
-        }
+  // Слухач для Nova Poshta widget
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.origin !== "https://widget.novapost.com") return;
+      let city = "";
+      if (event.data.settlementName) {
+        city = event.data.settlementName;
+      } else if (event.data.settlement && event.data.settlement.name) {
+        city = event.data.settlement.name;
       }
-    })
+      if (event.data && typeof event.data === "object" && event.data.name && city) {
+        setFormData((prev) => ({
+          ...prev,
+          branch: event.data.name,
+          city: city,
+          branchId: event.data.id?.toString() || "",
+          branchExternalId: event.data.externalId || "",
+        }));
+        setShowWidget(false);
+      }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [])
+
+  function openFrame() {
+    setShowWidget(true);
+  }
+
+  function closeFrame() {
+    setShowWidget(false);
   }
 
   return (
@@ -169,47 +123,15 @@ export function CheckoutForm() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">{t("phoneNumber")}</Label>
-                <div className="flex space-x-2">
-                  <PhoneInput
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(value) => setFormData((prev) => ({ ...prev, phone: value }))}
-                    placeholder="+38(012)-345-67-89"
-                    className="flex-1"
-                    required
-                  />
-                  <Button type="button" onClick={handleGetSmsCode} disabled={!isValidPhone(formData.phone)}>
-                    {t("getSmsCode")}
-                  </Button>
-                </div>
+                <PhoneInput
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(value) => setFormData((prev) => ({ ...prev, phone: value }))}
+                  placeholder="+38(012)-345-67-89"
+                  className="flex-1"
+                  required
+                />
               </div>
-
-              {showSmsInput && (
-                <div className="space-y-2">
-                  <Label htmlFor="smsCode">{t("smsCode")}</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="smsCode"
-                      name="smsCode"
-                      value={formData.smsCode}
-                      onChange={handleChange}
-                      placeholder={t("enterSmsCode")}
-                      required
-                      className="flex-1"
-                      disabled={codeVerified}
-                    />
-                    <Button type="button" onClick={handleVerifyCode} disabled={codeVerified}>
-                      {t("verifyCode")}
-                    </Button>
-                  </div>
-                  {codeVerified && (
-                    <div className="flex items-center text-green-600 text-sm">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      {t("smsCodeVerified")}
-                    </div>
-                  )}
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -246,27 +168,48 @@ export function CheckoutForm() {
                   <Label htmlFor="firstName">{t("firstName")}</Label>
                   <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="lastName">{t("lastName")}</Label>
                   <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} required />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  onClick={() => openFrame()}
-                  className="w-full"
-                >
-                  {formData.branch ? formData.branch : "Вибрати відділення"}
-                </Button>
-                {formData.branch && (
-                  <p className="text-sm text-muted-foreground">
-                    Обране відділення: <strong>{formData.branch}</strong>
-                  </p>
-                )}
+              {/* Nova Poshta Widget Button */}
+              <div
+                className="nova-poshta-button button-horizontal text-row"
+                tabIndex={0}
+                role="button"
+                style={{ outline: "none" }}
+                onClick={openFrame}
+              >
+                <span className="logo logo-no-margin" style={{ display: "flex", alignItems: "center" }}>
+                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M11.9401 16.4237H16.0596V21.271H19.2101L15.39 25.0911C14.6227 25.8585 13.3791 25.8585 12.6118 25.0911L8.79166 21.271H11.9401V16.4237ZM21.2688 19.2102V8.78972L25.091 12.6098C25.8583 13.3772 25.8583 14.6207 25.091 15.3881L21.2688 19.2102ZM16.0596 6.73099V11.5763H11.9401V6.73099H8.78958L12.6097 2.90882C13.377 2.14148 14.6206 2.14148 15.3879 2.90882L19.2101 6.73099H16.0596ZM2.90868 12.6098L6.72877 8.78972V19.2102L2.90868 15.3901C2.14133 14.6228 2.14133 13.3772 2.90868 12.6098Z" fill="#DA291C"/>
+                  </svg>
+                </span>
+                <span className="wrapper">
+                  <span className="text" style={{ fontWeight: 600 }}>
+                    {formData.branch
+                      ? formData.branch
+                      : "Обрати відділення або поштомат"}
+                  </span>
+                  <span className="text-description">
+                    {formData.branch && formData.city
+                      ? `${formData.city}`
+                      : "Обрати відділення або поштомат"}
+                  </span>
+                </span>
+                <span className="angle">
+                  <svg width="16" height="16" fill="none"><path d="M6 12l4-4-4-4" stroke="#222" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </span>
               </div>
+              {/* End Nova Poshta Widget Button */}
+
+              {formData.branch && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Обране відділення: <strong>{formData.branch}</strong>
+                </p>
+              )}
 
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -299,6 +242,67 @@ export function CheckoutForm() {
           type={smsNotification.type}
           onClose={() => setSmsNotification(null)}
         />
+      )}
+
+      {showWidget && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              boxShadow: "0 4px 32px rgba(0,0,0,0.15)",
+              position: "relative",
+              width: "90vw",
+              maxWidth: 820,
+              height: "80vh",
+              maxHeight: 600,
+              display: "flex",
+              flexDirection: "column"
+            }}
+          >
+            <button
+              onClick={closeFrame}
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                zIndex: 10,
+                background: "#fff",
+                border: "1px solid #eee",
+                borderRadius: "50%",
+                width: 32,
+                height: 32,
+                fontSize: 20,
+                cursor: "pointer"
+              }}
+              aria-label="Закрити"
+            >
+              ×
+            </button>
+            <iframe
+              id="novaposhta-widget"
+              src="https://widget.novapost.com/division/index.html"
+              style={{
+                flex: 1,
+                border: 0,
+                borderRadius: 8,
+                width: "100%",
+                height: "100%"
+              }}
+              allow="geolocation"
+            />
+          </div>
+        </div>
       )}
     </>
   )

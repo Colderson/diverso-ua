@@ -51,10 +51,6 @@ export default function CategoryPage() {
       />
       <h1 className="text-3xl font-bold mb-6">{getCategoryName(category, t)}</h1>
 
-      <div className="mb-8">
-        <SearchBar />
-      </div>
-
       <FilterButtons activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
 
       <ProductGrid category={category} filter={activeFilter} />

@@ -1,50 +1,68 @@
-"use client"
-
+"use client";
+import { BannerCarousel } from "@/components/banner-carousel"
+import { CategoryGrid } from "@/components/category-grid"
+import { ProductGrid } from "@/components/product-grid"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { useTranslation } from "@/components/language-provider"
 import { useRef } from "react"
 import Image from "next/image"
 import { ChevronLeft, ChevronRight, Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 
 const reviews = [
   {
     id: 1,
-    name: "Олена К.",
-    avatar: "/placeholder.svg?height=100&width=100",
+    name: "Катерина Б.",
+    avatar: "/reviews/review1.png",
     rating: 5,
-    text: "Замовляла чохол на ID-картку з дизайном улюбленого серіалу. Якість чудова, доставка швидка. Дуже задоволена покупкою!",
+    text: "Доброго дня, дарувала для брата, йому дуже сподобалося, тому що він на той час переглядав Шрека 😌 Він оцінив такий подарунок, дякую за емоції 🙇🏼‍♀️ ❤️",
   },
   {
     id: 2,
-    name: "Максим П.",
-    avatar: "/placeholder.svg?height=100&width=100",
+    name: "Оксана Л.",
+    avatar: "/reviews/review2.png",
     rating: 5,
-    text: "Купив гаманець як подарунок для друга. Шкіра високої якості, приємно пахне. Друг був у захваті. Рекомендую!",
+    text: "Чохольчик отримала, дякую! 😍😍 Відразу видно, річ зроблена на совість 💪 Саурон на обкладинці виглядає грізно й ефектно, впевнена, подарунок людині сподобається, бо я особисто в захваті ✨✨ ❤️",
   },
   {
     id: 3,
-    name: "Анна В.",
-    avatar: "/placeholder.svg?height=100&width=100",
-    rating: 4,
-    text: "Замовила блокнот з індивідуальним дизайном. Результат перевершив очікування. Єдиний мінус - довго чекала на виготовлення.",
+    name: "Ірина С.",
+    avatar: "/reviews/review3.png",
+    rating: 5,
+    text: "Доброго вечора) Так, отримала ) Дуже задоволена, якість перевершила очікування, швидкість доставки теж здивувала ) Дуже вдячна Вам 👍😄 ❤️",
   },
   {
     id: 4,
-    name: "Ігор Т.",
-    avatar: "/placeholder.svg?height=100&width=100",
+    name: "Тетяна Г.",
+    avatar: "/reviews/review4.png",
     rating: 5,
-    text: "Чохол на ID-картку з аніме дизайном просто бомба! Всі друзі питають, де я його взяв. Однозначно буду замовляти ще.",
+    text: "Так, все дуже сподобалось) Це був подарунок чоловіку, він у захваті, ще раз вам дуже дякую 😍😍😍 ❤️",
   },
   {
     id: 5,
-    name: "Марія С.",
-    avatar: "/placeholder.svg?height=100&width=100",
+    name: "Марина П.",
+    avatar: "/reviews/review5.png",
     rating: 5,
-    text: "Органайзер для документів дуже зручний і стильний. Тепер всі документи в порядку. Дякую за якісний товар!",
+    text: "Доброго дня, це був подарунок для хлопця. Він був приємно вражений!) Якість чудова та концепт незвичайний, дякую 😊 ❤️",
+  },
+  {
+    id: 6,
+    name: "Ольга Д.",
+    avatar: "/reviews/review6.png",
+    rating: 5,
+    text: "Доброго вечора. Нарешті знайшла час відписати. Чохли чудові, дуже круті на дотик 😊 Кожен хто перевіряє мої документи, посміхається і запам’ятовує надовго 😊 Дякую велике ☺️ ❤️",
+  },
+  {
+    id: 7,
+    name: "Світлана М.",
+    avatar: "/reviews/review7.png",
+    rating: 5,
+    text: "Все супер, дуже швидко відправили, якість 💘💦. Дуже дякую!!! ❤️",
   },
 ]
 
-export function CustomerReviews() {
+function CustomerReviews() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const scrollLeft = () => {
@@ -101,6 +119,33 @@ export function CustomerReviews() {
           </Card>
         ))}
       </div>
+    </div>
+  )
+}
+
+export default function Home() {
+  const { t } = useTranslation()
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <BannerCarousel />
+
+      <section className="my-12">
+        <h2 className="text-2xl font-bold mb-6 text-center">{t("categories")}</h2>
+        <CategoryGrid />
+      </section>
+
+      <section className="my-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">{t("idCardCovers")}</h2>
+          <Link href="/catalog/id-cards">
+            <Button variant="outline">{t("viewAll")}</Button>
+          </Link>
+        </div>
+        <ProductGrid category="id-cards" limit={8} isHomepage={true} />
+      </section>
+
+      <CustomerReviews />
     </div>
   )
 }

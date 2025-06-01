@@ -48,8 +48,8 @@ export function CartContents() {
 			{/* Left side - Cart items */}
 			<div className="lg:col-span-2">
 				<div className="space-y-4">
-					{items.map((item) => (
-						<Card key={item.cartId}>
+					{items.map(item => (
+						<Card key={`${item.cartId}-${item.sku || ""}`}>
 							<CardContent className="p-4">
 								<div className="flex items-center space-x-4">
 									<div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md">
