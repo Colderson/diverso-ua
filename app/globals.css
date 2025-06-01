@@ -1,0 +1,182 @@
+/* Remove the problematic Google Fonts import */
+/* @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap"); */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 0 100% 63%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 100% 76%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 210 100% 76%;
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 100% 63%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 10%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 100% 63%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 100% 30%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 210 100% 30%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 100% 63%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: var(--font-nunito), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .brand-font {
+    font-family: var(--font-nunito), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 800;
+  }
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Animated gradient background for light mode */
+.bg-gradient-animation {
+  background: linear-gradient(-45deg, #f9f9f9, #f5f5f5, #f0f0f0, #f5f5f5, #fafafa);
+  background-size: 400% 400%;
+  animation: gradient 20s ease infinite;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Dark mode background */
+.dark .bg-gradient-animation {
+  background: hsl(var(--background));
+  animation: none;
+}
+
+/* Custom button and input styles */
+.custom-checkbox {
+  @apply rounded-md border-2 border-border;
+}
+
+.custom-radio {
+  @apply rounded-full border-2 border-border;
+}
+
+/* Hover effects */
+.hover-lift {
+  transition: transform 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Enhanced checkbox and radio button styles for mobile */
+@media (max-width: 768px) {
+  /* Make checkboxes and radio buttons bigger on mobile */
+  input[type="checkbox"],
+  input[type="radio"],
+  [role="checkbox"],
+  [role="radio"] {
+    min-width: 20px !important;
+    min-height: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  /* Ensure proper spacing for touch targets */
+  .space-x-2 > * + * {
+    margin-left: 0.75rem;
+  }
+
+  /* Make labels more touchable */
+  label {
+    padding: 0.25rem;
+    cursor: pointer;
+  }
+}
+
+/* Global checkbox and radio improvements */
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+
+/* Ensure proper touch targets for mobile */
+@media (max-width: 768px) {
+  button,
+  input[type="checkbox"],
+  input[type="radio"],
+  [role="button"],
+  [role="checkbox"],
+  [role="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
