@@ -30,7 +30,7 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  console.log("CartProvider mounted", Math.random())
+  // console.log("CartProvider mounted", Math.random()) // ← Видалити або закоментувати
   const [items, setItems] = useState<CartItem[]>([])
   const [notification, setNotification] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false) // Додаємо прапорець
