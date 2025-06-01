@@ -20,7 +20,7 @@ interface OfferProperty {
 interface Offer {
   sku: string
   price: number
-  thumbnail_url?: string // ← додайте це поле!
+  thumbnail_url?: string
   image_url?: string
   properties?: OfferProperty[]
   product_id?: string | number
@@ -52,7 +52,7 @@ const colorOptions = [
 
 export function ProductDetail({ id }: { id: string }) {
   const { t } = useTranslation()
-  const { addItem, showNotification, items } = useCart()
+  const { addItem, showNotification } = useCart()
   const [product, setProduct] = useState<Product | null>(null)
   const [offers, setOffers] = useState<Offer[]>([])
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null)
@@ -83,7 +83,6 @@ export function ProductDetail({ id }: { id: string }) {
   // Встановлюємо selectedOffer за замовчуванням
   useEffect(() => {
     if (filteredOffers.length > 0) {
-      // Якщо selectedColor вже вибраний, шукаємо відповідний offer
       if (selectedColor) {
         const offer = filteredOffers.find(o =>
           o.properties?.some(
@@ -108,27 +107,18 @@ export function ProductDetail({ id }: { id: string }) {
     setSelectedImageIndex(0);
   }, [filteredOffers])
 
-  useEffect(() => {
-    console.log("offers from API:", offers)
-    console.log("filteredOffers:", filteredOffers)
-    console.log("product_id:", id)
-  }, [offers, filteredOffers, id])
-
   // Галерея (useMemo має бути ДО if (!product))
   const images = useMemo(() => {
-    // Збираємо всі фото з offers (тільки унікальні)
     const offerImages = filteredOffers
       .map(o => o.thumbnail_url)
       .filter(Boolean);
 
-    // Додаємо fallback-фото продукту
     const allImages = [
       ...offerImages,
       product?.thumbnail_url,
       ...(product?.attachments_data || []),
     ].filter(Boolean);
 
-    // Унікальні фото
     return Array.from(new Set(allImages));
   }, [filteredOffers, product]);
 
@@ -153,7 +143,7 @@ export function ProductDetail({ id }: { id: string }) {
   const handleAddEngraving = () => {
     addItem({
       id: "35",
-      cartId: "35-add_eng-", // or any unique identifier for engraving
+      cartId: "35-add_eng-",
       name: "Індивідуальне гравіювання",
       price: 170,
       quantity: 1,
@@ -181,16 +171,13 @@ export function ProductDetail({ id }: { id: string }) {
     );
     if (offer) setSelectedOffer(offer);
 
-    // Знаходимо індекс фото для цього offer у images
     const offerImage = offer?.thumbnail_url;
     const idx = images.findIndex(img => img === offerImage);
     setSelectedImageIndex(idx >= 0 ? idx : 0);
   };
 
-  // --- тільки після всіх хуків ---
   if (!product) return <div>Product not found</div>;
 
-  // Кольори з offers
   const availableColors: string[] = filteredOffers.length > 0
     ? Array.from(new Set(
         filteredOffers
@@ -204,7 +191,6 @@ export function ProductDetail({ id }: { id: string }) {
       ))
     : []
 
-  // SKU та ціна
   const currentSku = selectedOffer?.sku || baseOffer?.sku || product.sku || "";
   const currentPrice = selectedOffer?.price ?? baseOffer?.price ?? product.price ?? 0
 
@@ -266,15 +252,25 @@ export function ProductDetail({ id }: { id: string }) {
           <div className="text-sm text-muted-foreground mb-6">
             {t("sku")}: {currentSku}
           </div>
-          <div className="prose prose-sm dark:prose-invert mb-6">
-            <p>{product.description || t("productDescription")}</p>
+          {/* Опис товару */}
+          <div className="mb-6">
+            <h3 className="font-semibold text-lg flex items-center gap-2 mb-2">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v11A2.5 2.5 0 0117.5 20h-11A2.5 2.5 0 014 17.5v-11z" stroke="currentColor" strokeWidth="1.5"/><path d="M8 9h8M8 13h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              {t("productDetails") || "Опис товару"}
+            </h3>
+            <div className="rounded-lg bg-muted/40 p-4 text-base leading-relaxed text-foreground shadow-sm border border-muted">
+              {product.description
+                ? product.description
+                : <span className="text-muted-foreground">{t("productDescription")}</span>
+              }
+            </div>
           </div>
           {/* Кольори */}
           {filteredOffers.length > 0 && availableColors.length > 0 && (
             <div className="mb-6">
               <h3 className="font-medium mb-3">{t("color")}</h3>
               <div className="flex space-x-3">
-                {availableColors.map((color, idx) => (
+                {availableColors.map((color) => (
                   <button
                     key={color}
                     className={`w-10 h-10 rounded-full border-2 transition-all ${
