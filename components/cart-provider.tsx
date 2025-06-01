@@ -4,6 +4,7 @@ import { createContext, useContext, useState, type ReactNode, useEffect } from "
 
 export type CartItem = {
   id: string
+  cartId: string // ← Додаємо!
   name: string
   price: number
   quantity: number
@@ -29,38 +30,47 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  console.log("CartProvider mounted", Math.random())
   const [items, setItems] = useState<CartItem[]>([])
   const [notification, setNotification] = useState<string | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false) // Додаємо прапорець
 
   // Load cart from localStorage on client side
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart")
-    if (savedCart) {
-      try {
-        setItems(JSON.parse(savedCart))
-      } catch (e) {
-        console.error("Failed to parse cart from localStorage")
+    if (typeof window !== "undefined") {
+      const savedCart = localStorage.getItem("cart")
+      if (savedCart) {
+        try {
+          setItems(JSON.parse(savedCart))
+        } catch (e) {
+          console.error("Failed to parse cart from localStorage")
+          setItems([])
+        }
+      } else {
+        setItems([]) // <-- Додаємо!
       }
+      setIsLoaded(true)
     }
   }, [])
 
-  // Save cart to localStorage when it changes
+  // Save cart to localStorage when it changes, але тільки після першого завантаження
   useEffect(() => {
+    if (!isLoaded) return
     if (items.length > 0) {
       localStorage.setItem("cart", JSON.stringify(items))
     } else {
       localStorage.removeItem("cart")
     }
-  }, [items])
+  }, [items, isLoaded])
 
   const itemCount = items.reduce((total, item) => total + item.quantity, 0)
   const totalPrice = items.reduce((total, item) => total + item.price * item.quantity, 0)
 
   const addItem = (item: CartItem) => {
+    console.log("addItem called", item)
     setItems((prevItems) => {
-      // Check if item with same ID and color already exists
       const existingItemIndex = prevItems.findIndex(
-        (i) => i.id === item.id && i.color === item.color && i.hasEngraving === item.hasEngraving,
+        (i) => i.cartId === item.cartId,
       )
 
       if (existingItemIndex >= 0) {
@@ -75,17 +85,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const removeItem = (id: string) => {
-    setItems((prevItems) => prevItems.filter((item) => `${item.id}-${item.color}` !== id))
+  const removeItem = (cartId: string) => {
+    setItems((prevItems) => prevItems.filter((item) => item.cartId !== cartId))
   }
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = (cartId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeItem(id)
+      removeItem(cartId)
       return
     }
 
-    setItems((prevItems) => prevItems.map((item) => (`${item.id}-${item.color}` === id ? { ...item, quantity } : item)))
+    setItems((prevItems) => prevItems.map((item) => (item.cartId === cartId ? { ...item, quantity } : item)))
   }
 
   const clearCart = () => {

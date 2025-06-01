@@ -1,32 +1,40 @@
 "use client"
 
-import React from "react"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/components/language-provider"
-import { mockProducts } from "@/lib/mock-data"
 
 export function SimilarProducts({ currentProductId }: { currentProductId: string }) {
   const { t } = useTranslation()
   const [products, setProducts] = useState<any[]>([])
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+  const [categoryId, setCategoryId] = useState<number | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Get current product to find its category
-    const currentProduct = mockProducts.find((p) => p.id === currentProductId)
-    if (!currentProduct) return
+    fetch("/api/keycrm-products")
+      .then(res => res.json())
+      .then(async (data) => {
+        const currentProduct = data.find((p: any) => String(p.id) === String(currentProductId))
+        if (!currentProduct) return
+        setCategoryId(currentProduct.category_id)
+        const similar = data
+          .filter((p: any) => p.category_id === currentProduct.category_id && String(p.id) !== String(currentProductId))
+          .slice(0, 6)
 
-    // Filter similar products (same category, different ID)
-    const similar = mockProducts
-      .filter((p) => p.category === currentProduct.category && p.id !== currentProductId)
-      .slice(0, 6)
-
-    setProducts(similar)
+        // Підвантажуємо offers для кожного схожого товару
+        const similarWithOffers = await Promise.all(
+          similar.map(async (product: any) => {
+            const offersRes = await fetch(`/api/keycrm-products/offers?product_id=${product.id}`)
+            const offersData = await offersRes.json()
+            return { ...product, offers: offersData.data || [] }
+          })
+        )
+        setProducts(similarWithOffers)
+      })
   }, [currentProductId])
 
   const scrollLeft = () => {
@@ -64,23 +72,39 @@ export function SimilarProducts({ currentProductId }: { currentProductId: string
         className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        {products.map((product) => (
-          <Link key={product.id} href={`/product/${product.id}`}>
-            <Card className="min-w-[220px] max-w-[220px] flex-shrink-0 hover-lift">
-              <div className="relative aspect-[3/4]">
-                <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
-              </div>
-              <CardContent className="p-4">
-                <h3 className="font-medium line-clamp-2 text-sm">
-                  {product.nameKey ? t(product.nameKey) : product.name}
-                </h3>
-              </CardContent>
-              <CardFooter className="p-4 pt-0">
-                <p className="font-bold text-sm">{product.price} ₴</p>
-              </CardFooter>
-            </Card>
-          </Link>
-        ))}
+        {products.map((product) => {
+          const minOfferPrice = product.offers && product.offers.length > 0
+            ? Math.min(...product.offers.map((o: any) => o.price ?? Infinity))
+            : null;
+          const displayPrice = minOfferPrice !== null && minOfferPrice !== Infinity
+            ? minOfferPrice
+            : product.price ?? 0;
+
+          return (
+            <Link key={product.id} href={`/product/${product.id}`}>
+              <Card className="min-w-[220px] max-w-[220px] flex-shrink-0 hover-lift">
+                <div className="relative aspect-[3/4]">
+                  <Image
+                    src={product.thumbnail_url || (product.attachments_data && product.attachments_data[0]) || "/placeholder.svg"}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <CardContent className="p-4">
+                  <h3 className="font-medium line-clamp-2 text-sm">
+                    {product.name}
+                  </h3>
+                </CardContent>
+                <CardFooter className="p-4 pt-0">
+                  <p className="font-bold text-sm">
+                    {displayPrice} ₴
+                  </p>
+                </CardFooter>
+              </Card>
+            </Link>
+          )
+        })}
       </div>
     </div>
   )

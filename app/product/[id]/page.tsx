@@ -22,7 +22,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       />
 
       <ProductDetail id={resolvedParams.id} />
-      <SimilarProducts currentProductId={resolvedParams.id} />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ShoppingCart } from "lucide-react"
@@ -9,6 +9,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/components/cart-provider"
 import { useTranslation } from "@/components/language-provider"
+import { Pagination } from "@/components/pagination"
 
 type Product = {
   id: number
@@ -17,6 +18,12 @@ type Product = {
   images?: { url: string }[]
   category_id?: number
   subcategory?: string
+  variants?: { price: number }[]
+  thumbnail_url?: string
+  attachments_data?: string[]
+  min_price?: number
+  max_price?: number
+  sku?: string
   // інші поля за потреби
 }
 
@@ -29,10 +36,26 @@ type ProductGridProps = {
   isHomepage?: boolean
 }
 
+const PRODUCTS_PER_PAGE = 12;
+
+const filterMap: Record<string, number[]> = {
+  all: [6, 7, 8, 9],
+  movies: [6],
+  anime: [7],
+  games: [8],
+  cartoons: [9],
+}
+
 export function ProductGrid({ category, limit, filter, isHomepage = false }: ProductGridProps) {
   const { t } = useTranslation()
   const { addItem, showNotification } = useCart()
   const [products, setProducts] = useState<Product[]>([])
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Скидаємо сторінку при зміні фільтра або категорії
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, category]);
 
   useEffect(() => {
     if (category === "id-cards") {
@@ -42,8 +65,10 @@ export function ProductGrid({ category, limit, filter, isHomepage = false }: Pro
           let filtered = data.filter(
             (product: Product) => allowedCategoryIds.includes(product.category_id ?? 0)
           )
-          if (filter && filter !== "all") {
-            filtered = filtered.filter((product: Product) => product.subcategory === filter)
+          if (filter && filter !== "all" && filterMap[filter]) {
+            filtered = filtered.filter((product: Product) =>
+              filterMap[filter].includes(product.category_id ?? 0)
+            )
           }
           if (limit) {
             filtered = filtered.slice(0, limit)
@@ -58,11 +83,16 @@ export function ProductGrid({ category, limit, filter, isHomepage = false }: Pro
     e.stopPropagation()
     addItem({
       id: String(product.id),
+      cartId: `${product.id}-${""}-`, // завжди такий формат!
       name: product.name,
       price: product.price ?? 0,
       quantity: 1,
-      image: product.images?.[0]?.url || "",
-      // інші поля за потреби
+      image:
+        product.thumbnail_url ||
+        product.images?.[0]?.url ||
+        (product.attachments_data && product.attachments_data[0]) ||
+        "/placeholder.svg",
+      sku: product.sku ?? "",
     })
     showNotification("Товар доданий у кошик")
   }
@@ -75,38 +105,72 @@ export function ProductGrid({ category, limit, filter, isHomepage = false }: Pro
     )
   }
 
+  const totalPages = Math.ceil(products.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = products.slice(
+    (currentPage - 1) * PRODUCTS_PER_PAGE,
+    currentPage * PRODUCTS_PER_PAGE
+  );
+
   const gridClass = isHomepage
     ? "grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"
     : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
 
+  const shownProducts = isHomepage
+    ? products.slice(0, 8)
+    : paginatedProducts;
+
   return (
-    <div className={gridClass}>
-      {products.map((product) => (
-        <Link key={product.id} href={`/product/${product.id}`}>
-          <Card className="overflow-hidden transition-all hover:shadow-md h-full flex flex-col">
-            <div className={`relative ${isHomepage ? "aspect-square" : "aspect-[3/4]"}`}>
-              <Image
-                src={product.images?.[0]?.url || "/placeholder.svg"}
-                alt={product.name}
-                fill
-                className="object-cover"
-              />
-            </div>
+    <>
+      <div className={gridClass}>
+        {shownProducts.map((product) => (
+          <Card key={product.id} className="overflow-hidden transition-all hover:shadow-md h-full flex flex-col">
+            <Link href={`/product/${product.id}`}>
+              <div className="relative aspect-square">
+                <Image
+                  src={
+                    product.thumbnail_url ||
+                    (product.attachments_data && product.attachments_data[0]) ||
+                    "/placeholder.svg"
+                  }
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            </Link>
             <CardContent className="p-4 flex-grow">
               <h3 className="font-medium line-clamp-2 text-sm">
                 {product.name}
               </h3>
             </CardContent>
             <CardFooter className="p-4 pt-0 flex justify-between items-center">
-              <p className="font-bold text-sm">{product.price} ₴</p>
-              <Button size="sm" variant="ghost" className="rounded-full" onClick={(e) => handleAddToCart(product, e)}>
+              <p className="font-bold text-sm">
+                {product.variants?.[0]?.price ?? product.price ?? product.min_price ?? product.max_price ?? 0} ₴
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="rounded-full"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddToCart(product, e);
+                }}
+              >
                 <ShoppingCart className="h-4 w-4" />
                 <span className="sr-only">{t("addToCart")}</span>
               </Button>
             </CardFooter>
           </Card>
-        </Link>
-      ))}
-    </div>
+        ))}
+      </div>
+      {!isHomepage && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
+    </>
   )
 }

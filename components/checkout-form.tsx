@@ -128,6 +128,35 @@ export function CheckoutForm() {
     router.push("/")
   }
 
+  function openFrame() {
+    const apiKey = "3e9f2e92be7ce375da5f0bf97d48989a"
+    const url = `https://developers.novaposhta.ua/?apiKey=${apiKey}`
+
+    const widgetWindow = window.open(
+      url,
+      "novaPoshtaWidget",
+      "width=820,height=600"
+    )
+
+    // Додаємо слухача для отримання вибраного відділення
+    window.addEventListener("message", (event) => {
+      if (typeof event.data === "string") {
+        try {
+          const data = JSON.parse(event.data)
+          if (data && data.data && data.data.WarehouseDescription) {
+            const branchName = data.data.WarehouseDescription
+            setFormData((prev) => ({
+              ...prev,
+              branch: branchName,
+            }))
+          }
+        } catch (e) {
+          // Некоректна відповідь від віджета
+        }
+      }
+    })
+  }
+
   return (
     <>
       <div className="max-w-2xl mx-auto">
@@ -225,35 +254,18 @@ export function CheckoutForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="city">{t("city")}</Label>
-                <Select onValueChange={(value) => setFormData((prev) => ({ ...prev, city: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("selectCity")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* TO DO: Integrate Nova Poshta API for city list */}
-                    <SelectItem value="kyiv">Київ</SelectItem>
-                    <SelectItem value="lviv">Львів</SelectItem>
-                    <SelectItem value="dnipro">Дніпро</SelectItem>
-                    <SelectItem value="odesa">Одеса</SelectItem>
-                    <SelectItem value="kharkiv">Харків</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="branch">{t("novaPoshtaBranch")}</Label>
-                <Select onValueChange={(value) => setFormData((prev) => ({ ...prev, branch: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("selectBranch")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* TO DO: Integrate Nova Poshta API for branch list */}
-                    <SelectItem value="branch1">Відділення №1</SelectItem>
-                    <SelectItem value="branch2">Відділення №2</SelectItem>
-                    <SelectItem value="branch3">Відділення №3</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Button
+                  type="button"
+                  onClick={() => openFrame()}
+                  className="w-full"
+                >
+                  {formData.branch ? formData.branch : "Вибрати відділення"}
+                </Button>
+                {formData.branch && (
+                  <p className="text-sm text-muted-foreground">
+                    Обране відділення: <strong>{formData.branch}</strong>
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center space-x-2">

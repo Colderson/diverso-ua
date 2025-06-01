@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useParams } from "next/navigation"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { ProductGrid } from "@/components/product-grid"
@@ -14,9 +15,9 @@ import { useTranslation } from "@/components/language-provider"
 export default function CategoryPage() {
   const params = useParams()
   const rawCategory = params?.category || ""
-  // Якщо category масив, беремо перший елемент
   const category = Array.isArray(rawCategory) ? rawCategory[0] : rawCategory
   const { t } = useTranslation()
+  const [activeFilter, setActiveFilter] = useState("all")
 
   if (category !== "id-cards") {
     return (
@@ -54,11 +55,15 @@ export default function CategoryPage() {
         <SearchBar />
       </div>
 
-      <FilterButtons />
+      <FilterButtons activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
 
-      <ProductGrid category={category} />
+      <ProductGrid category={category} filter={activeFilter} />
 
-      <Pagination />
+      <Pagination
+        currentPage={1}
+        totalPages={1}
+        onPageChange={() => {}}
+      />
 
       <CustomDesignCTA />
     </div>

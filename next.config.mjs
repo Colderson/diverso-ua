@@ -8,6 +8,10 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    domains: [
+      'keycrm.s3.eu-central-1.amazonaws.com',
+      'diverso.api.keycrm.app'
+    ],
   },
 }
 

@@ -35,7 +35,7 @@ const translations: Translations = {
 
   // Product details
   addToCart: { uk: "Додати в кошик", en: "Add to cart" },
-  addEngraving: { uk: "Додати гравіювання (+50 ₴)", en: "Add Engraving (+50 ₴)" },
+  addEngraving: { uk: "Додати гравіювання (+170 ₴)", en: "Add Engraving (+170 ₴)" },
   engravingMessage: {
     uk: "Для обговорення гравіювання з Вами зв'яжеться наш менеджер.",
     en: "Our manager will contact you to discuss engraving details.",
@@ -292,8 +292,7 @@ const translations: Translations = {
     en: "Leather ID card cover with engraving. Made from the highest quality natural leather.",
   },
   // Main page sections
-  categories: { uk: "Категорії", en: "Categories" },
-  viewAll: { uk: "Дивитись усі", en: "View All" },
+  // categories and viewAll are already defined above, so we remove these duplicates.
 
   // Product names - add these new translations
   productHarryPotter: { uk: "Чохол на ID-картку 'Гаррі Поттер'", en: "ID Card Cover 'Harry Potter'" },

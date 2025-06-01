@@ -25,31 +25,34 @@ export function CustomDesignForm() {
   const [comments, setComments] = useState("")
   const [file, setFile] = useState<File | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const formData = new FormData()
+    formData.append("name", name)
+    formData.append("phone", phone)
+    formData.append("contactMethod", contactMethod)
+    formData.append("username", username)
+    formData.append("designDescription", designDescription)
+    formData.append("comments", comments)
+    if (file) formData.append("file", file)
 
-    // TO DO: Send form data to email diverso.ua.2024@gmail.com
-    console.log({
-      name,
-      phone,
-      contactMethod,
-      username,
-      designDescription,
-      comments,
-      file,
+    const res = await fetch("/api/send-custom-design", {
+      method: "POST",
+      body: formData,
     })
 
-    // Reset form
-    setName("")
-    setPhone("")
-    setContactMethod("telegram")
-    setUsername("")
-    setDesignDescription("")
-    setComments("")
-    setFile(null)
-
-    // Show confirmation popup
-    setShowConfirmation(true)
+    if (res.ok) {
+      setName("")
+      setPhone("")
+      setContactMethod("telegram")
+      setUsername("")
+      setDesignDescription("")
+      setComments("")
+      setFile(null)
+      setShowConfirmation(true)
+    } else {
+      alert("Помилка при відправці форми")
+    }
   }
 
   const handleConfirmationClose = () => {
