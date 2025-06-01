@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -11,11 +11,18 @@ import { useTranslation } from "@/components/language-provider"
 export function SearchBar() {
   const { t } = useTranslation()
   const [query, setQuery] = useState("")
+  const router = useRouter()
+  const pathname = usePathname()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    // TO DO: Implement search functionality
-    console.log("Searching for:", query)
+    if (query.trim()) {
+      if (pathname === "/catalog") {
+        router.replace(`/catalog?search=${encodeURIComponent(query.trim())}`)
+      } else {
+        router.push(`/catalog?search=${encodeURIComponent(query.trim())}`)
+      }
+    }
   }
 
   return (
