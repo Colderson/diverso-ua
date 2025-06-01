@@ -17,7 +17,7 @@ type AccountModalProps = {
   onLoginSuccess?: () => void
 }
 
-type FormMode = "initial" | "login" | "register" | "forgot-password" | "reset-password"
+type FormMode = "initial" | "login" | "register" | "forgot-password"
 
 export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
   const { t } = useTranslation()
@@ -26,15 +26,13 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
   const [name, setName] = useState("")
   const [surname, setSurname] = useState("")
   const [email, setEmail] = useState("")
+  const [address, setAddress] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [resetCode, setResetCode] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  const [resetPhone, setResetPhone] = useState("")
+  const [resetEmail, setResetEmail] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [notification, setNotification] = useState<{
     message: string
@@ -44,9 +42,6 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [resetEmail, setResetEmail] = useState("")
-  const [showResetCodeInput, setShowResetCodeInput] = useState(false)
-  const [codeVerified, setCodeVerified] = useState(false)
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -84,7 +79,7 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
   }
 
   const isValidPassword = (password: string) => {
-    return password.length >= 5
+    return password.length >= 6
   }
 
   const handlePhoneSubmit = async () => {
@@ -163,81 +158,42 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
     }
   }
 
+  
   const handleRegister = async () => {
-    if (!name || !surname || !email || !password || !confirmPassword) {
-      setNotification({
-        message: "Заповніть всі обов'язкові поля",
-        type: "error",
-      })
-      return
+  setIsLoading(true)
+
+  const result = await authService.register({
+    email,
+    phone,
+    password,
+    name,
+    surname,
+  })
+
+  setIsLoading(false)
+
+  setNotification({
+    message: result.message,
+    type: result.success ? "success" : "error",
+  })
+
+  if (result.success) {
+    // Автоматичний вхід
+    localStorage.setItem("isLoggedIn", "true")
+    localStorage.setItem("userData", JSON.stringify(result.user))
+    window.dispatchEvent(new Event("loginStateChanged"))
+
+    if (onLoginSuccess) {
+      onLoginSuccess()
     }
 
-    if (!acceptPrivacy) {
-      setNotification({
-        message: "Підтвердіть згоду з політикою конфіденційності",
-        type: "error",
-      })
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setNotification({
-        message: "Паролі не співпадають",
-        type: "error",
-      })
-      return
-    }
-
-    if (!isValidPassword(password)) {
-      setNotification({
-        message: "Пароль повинен містити мінімум 5 символів",
-        type: "error",
-      })
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      const result = await authService.register({
-        email,
-        phone,
-        password,
-        name,
-        surname,
-      })
-
-      if (result.success && result.user) {
-        localStorage.setItem("isLoggedIn", "true")
-        localStorage.setItem("userData", JSON.stringify(result.user))
-        window.dispatchEvent(new Event("loginStateChanged"))
-
-        setNotification({
-          message: result.message,
-          type: "success",
-        })
-
-        setTimeout(() => {
-          if (onLoginSuccess) {
-            onLoginSuccess()
-          }
-          handleClose()
-        }, 2000)
-      } else {
-        setNotification({
-          message: result.message,
-          type: "error",
-        })
-      }
-    } catch (error) {
-      setNotification({
-        message: "Помилка реєстрації",
-        type: "error",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    // Закрити модалку через 2 сек (можна одразу)
+    setTimeout(() => {
+      handleClose()
+    }, 2000)
   }
+}
+
 
   const handleForgotPassword = async () => {
     if (!resetEmail || !isValidEmail(resetEmail)) {
@@ -248,10 +204,18 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
       return
     }
 
+    if (!resetPhone || !isValidPhone(resetPhone) || !isValidPhoneDigits(resetPhone)) {
+      setNotification({
+        message: "Введіть правильний номер телефону",
+        type: "error",
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      const result = await authService.initiatePasswordReset(resetEmail)
+      const result = await authService.resetPassword(resetEmail)
 
       setNotification({
         message: result.message,
@@ -259,7 +223,6 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
       })
 
       if (result.success) {
-        setShowResetCodeInput(true)
         setResendCountdown(60)
       }
     } catch (error) {
@@ -272,16 +235,16 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
     }
   }
 
-  const handleResendResetCode = async () => {
-    if (!resetEmail) return
+  const handleResendResetLink = async () => {
+    if (!resetEmail || !resetPhone) return
 
     setIsLoading(true)
 
     try {
-      const result = await authService.initiatePasswordReset(resetEmail)
+      const result = await authService.resetPassword(resetEmail)
 
       setNotification({
-        message: result.success ? "Код відправлено повторно" : result.message,
+        message: result.success ? "Посилання відправлено повторно" : result.message,
         type: result.success ? "info" : "error",
       })
 
@@ -291,105 +254,6 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
     } catch (error) {
       setNotification({
         message: "Помилка при повторному відправленні",
-        type: "error",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleVerifyResetCode = async () => {
-    if (!resetCode) {
-      setNotification({
-        message: "Введіть код відновлення",
-        type: "error",
-      })
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      const result = await authService.verifyResetCode(resetEmail, resetCode)
-
-      if (result.success) {
-        setCodeVerified(true)
-        setFormMode("reset-password")
-        setNotification({
-          message: "Код підтверджено. Введіть новий пароль",
-          type: "success",
-        })
-      } else {
-        setNotification({
-          message: result.message,
-          type: "error",
-        })
-      }
-    } catch (error) {
-      setNotification({
-        message: "Помилка при перевірці коду",
-        type: "error",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleResetPassword = async () => {
-    if (!newPassword || !confirmNewPassword) {
-      setNotification({
-        message: "Заповніть всі поля",
-        type: "error",
-      })
-      return
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      setNotification({
-        message: "Паролі не співпадають",
-        type: "error",
-      })
-      return
-    }
-
-    if (!isValidPassword(newPassword)) {
-      setNotification({
-        message: "Пароль повинен містити мінімум 5 символів",
-        type: "error",
-      })
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      const result = await authService.resetPassword(resetEmail, newPassword)
-
-      if (result.success && result.user) {
-        localStorage.setItem("isLoggedIn", "true")
-        localStorage.setItem("userData", JSON.stringify(result.user))
-        window.dispatchEvent(new Event("loginStateChanged"))
-
-        setNotification({
-          message: result.message,
-          type: "success",
-        })
-
-        setTimeout(() => {
-          if (onLoginSuccess) {
-            onLoginSuccess()
-          }
-          handleClose()
-        }, 2000)
-      } else {
-        setNotification({
-          message: result.message,
-          type: "error",
-        })
-      }
-    } catch (error) {
-      setNotification({
-        message: "Помилка при зміні пароля",
         type: "error",
       })
     } finally {
@@ -411,8 +275,6 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
         return "Реєстрація"
       case "forgot-password":
         return "Відновлення пароля"
-      case "reset-password":
-        return "Новий пароль"
       default:
         return "Увійти або зареєструватися"
     }
@@ -513,6 +375,7 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
                     type="button"
                     onClick={() => {
                       setFormMode("forgot-password")
+                      setResetPhone(phone)
                       setResetEmail(email)
                     }}
                     className="text-sm text-blue-600 hover:text-blue-800 underline"
@@ -549,7 +412,7 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Електронна пошта * (обов'язково для відновлення пароля)</Label>
+                  <Label htmlFor="email">Електронна пошта *</Label>
                   <Input
                     id="email"
                     type="email"
@@ -601,7 +464,7 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Мінімум 5 символів"
+                      placeholder="Мінімум 6 символів"
                       required
                     />
                     <Button
@@ -615,7 +478,7 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
                     </Button>
                   </div>
                   {password && !isValidPassword(password) && (
-                    <p className="text-red-500 text-sm">Пароль повинен містити мінімум 5 символів</p>
+                    <p className="text-red-500 text-sm">Пароль повинен містити мінімум 6 символів</p>
                   )}
                 </div>
 
@@ -700,8 +563,22 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
             {formMode === "forgot-password" && (
               <div className="space-y-4">
                 <p className="mb-6 text-muted-foreground text-sm">
-                  Введіть електронну пошту, яку ви вказували при реєстрації
+                  Введіть номер телефону та електронну пошту, які ви вказували при реєстрації
                 </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="reset-phone">Номер телефону</Label>
+                  <PhoneInput
+                    id="reset-phone"
+                    value={resetPhone}
+                    onChange={setResetPhone}
+                    placeholder="+38(012)-345-67-89"
+                    required
+                  />
+                  {resetPhone && !isValidPhoneDigits(resetPhone) && (
+                    <p className="text-red-500 text-sm">Номер повинен містити рівно 9 цифр</p>
+                  )}
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="reset-email">Електронна пошта</Label>
@@ -718,47 +595,42 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
                 <Button
                   type="button"
                   onClick={handleForgotPassword}
-                  disabled={!resetEmail || !isValidEmail(resetEmail) || isLoading}
+                  disabled={
+                    !resetEmail ||
+                    !isValidEmail(resetEmail) ||
+                    !resetPhone ||
+                    !isValidPhone(resetPhone) ||
+                    !isValidPhoneDigits(resetPhone) ||
+                    isLoading ||
+                    resendCountdown > 0
+                  }
                   className="w-full"
                 >
-                  {isLoading ? "Відправляємо..." : "Отримати код"}
+                  {isLoading
+                    ? "Відправляємо..."
+                    : resendCountdown > 0
+                      ? `Відправити повторно (${resendCountdown}с)`
+                      : "Отримати посилання"}
                 </Button>
 
-                {showResetCodeInput && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="reset-code">Код відновлення з email</Label>
-                      <Input
-                        id="reset-code"
-                        value={resetCode}
-                        onChange={(e) => setResetCode(e.target.value)}
-                        placeholder="Введіть код з email"
-                        required
-                      />
-                    </div>
-
+                {resendCountdown > 0 && (
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Перевірте вашу електронну пошту. Якщо ви не отримали лист, перевірте папку "Спам".
+                    </p>
                     <Button
                       type="button"
-                      onClick={handleVerifyResetCode}
-                      disabled={!resetCode || isLoading}
-                      className="w-full"
+                      onClick={handleResendResetLink}
+                      disabled={resendCountdown > 0 || isLoading}
+                      variant="ghost"
+                      size="sm"
+                      className={resendCountdown > 0 ? "opacity-50 cursor-not-allowed" : ""}
                     >
-                      {isLoading ? "Перевіряємо..." : "Підтвердити код"}
+                      {resendCountdown > 0
+                        ? `Відправити повторно (${resendCountdown}с)`
+                        : "Відправити посилання повторно"}
                     </Button>
-
-                    <div className="text-center">
-                      <Button
-                        type="button"
-                        onClick={handleResendResetCode}
-                        disabled={resendCountdown > 0 || isLoading}
-                        variant="ghost"
-                        size="sm"
-                        className={resendCountdown > 0 ? "opacity-50 cursor-not-allowed" : ""}
-                      >
-                        {resendCountdown > 0 ? `Відправити повторно (${resendCountdown}с)` : "Відправити код повторно"}
-                      </Button>
-                    </div>
-                  </>
+                  </div>
                 )}
 
                 <div className="text-center space-y-2">
@@ -770,89 +642,6 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
                     Назад до входу
                   </button>
                 </div>
-
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowPrivacyModal(true)}
-                    className="text-sm text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Політика конфіденційності
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {formMode === "reset-password" && (
-              <div className="space-y-4">
-                <p className="mb-6 text-muted-foreground text-sm">Придумайте новий пароль для вашого акаунта</p>
-
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">Новий пароль</Label>
-                  <div className="relative">
-                    <Input
-                      id="new-password"
-                      type={showNewPassword ? "text" : "password"}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Мінімум 5 символів"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                    >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  {newPassword && !isValidPassword(newPassword) && (
-                    <p className="text-red-500 text-sm">Пароль повинен містити мінімум 5 символів</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-new-password">Підтвердження нового пароля</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirm-new-password"
-                      type={showConfirmNewPassword ? "text" : "password"}
-                      value={confirmNewPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      placeholder="Повторіть новий пароль"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
-                    >
-                      {showConfirmNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  {confirmNewPassword && newPassword !== confirmNewPassword && (
-                    <p className="text-red-500 text-sm">Паролі не співпадають</p>
-                  )}
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={handleResetPassword}
-                  disabled={
-                    !newPassword ||
-                    !confirmNewPassword ||
-                    !isValidPassword(newPassword) ||
-                    newPassword !== confirmNewPassword ||
-                    isLoading
-                  }
-                  className="w-full"
-                >
-                  {isLoading ? "Змінюємо пароль..." : "Змінити пароль"}
-                </Button>
 
                 <div className="text-center">
                   <button
@@ -956,7 +745,7 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
                 </p>
 
                 <p>
-                  2.4. Зареєструвавшись на сайті компанії ТОМ, самостійно вибравши ЛОГІН та ПАРОЛЬ доступу до
+                  2.4. Зареєструвавшись на сайті компанії Diverso, самостійно вибравши ЛОГІН та ПАРОЛЬ доступу до
                   інтернет-магазину (сайту), Покупець тим самим підтверджує, що він згоден з:
                 </p>
                 <ul>

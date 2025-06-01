@@ -30,6 +30,7 @@ export function CheckoutForm() {
     paymentMethod: "cod",
     firstName: "",
     lastName: "",
+    email: "", // ДОДАЙ сюди email
     city: "",
     branch: "",
     branchAddress: "",
@@ -95,12 +96,53 @@ export function CheckoutForm() {
           city: city,
           branchId: event.data.id?.toString() || "",
           branchExternalId: event.data.externalId || "",
-        }));
-        setShowWidget(false);
+        }))
+        setShowWidget(false)
+        // Оновлюємо localStorage
+        localStorage.setItem(
+          "npBranch",
+          JSON.stringify({
+            branch: event.data.name,
+            city: city,
+            branchId: event.data.id?.toString() || "",
+            branchExternalId: event.data.externalId || "",
+          })
+        )
       }
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
+  }, [])
+
+  useEffect(() => {
+    // Підтягуємо userData з localStorage
+    const userData = localStorage.getItem("userData")
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData)
+        setFormData((prev) => ({
+          ...prev,
+          phone: parsed.phone || "",
+          firstName: parsed.name || "",
+          lastName: parsed.surname || "",
+          email: parsed.email || "", // ДОДАЙ сюди email
+        }))
+      } catch {}
+    }
+    // Підтягуємо відділення Нової Пошти з localStorage
+    const npBranch = localStorage.getItem("npBranch")
+    if (npBranch) {
+      try {
+        const parsed = JSON.parse(npBranch)
+        setFormData((prev) => ({
+          ...prev,
+          branch: parsed.branch || "",
+          city: parsed.city || "",
+          branchId: parsed.branchId || "",
+          branchExternalId: parsed.branchExternalId || "",
+        }))
+      } catch {}
+    }
   }, [])
 
   function openFrame() {

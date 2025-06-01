@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
         buyer: {
           full_name: buyerFullName,
           phone: buyerPhone,
+          email: formData.email, // ДОДАЙ сюди email
         },
         manager_comment: managerComment,
         ordered_at: new Date().toISOString().slice(0, 19).replace("T", " "),
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
           recipient_full_name: buyerFullName,
           recipient_phone: buyerPhone,
           warehouse_ref: formData.branchExternalId,
-          delivery_service_id: deliveryServiceId, // <-- тут динамічно
+          delivery_service_id: deliveryServiceId,
         },
         products,
       }),

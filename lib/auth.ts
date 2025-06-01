@@ -1,4 +1,4 @@
-import { supabase, userService, passwordUtils } from "./supabase"
+import { supabase } from "./supabase"
 
 export interface AuthResult {
   success: boolean
@@ -8,11 +8,64 @@ export interface AuthResult {
     email: string
     phone: string
     name: string
+    surname: string
   }
 }
 
+export const userService = {
+  async checkUserByPhone(phone: string) {
+    const { data } = await supabase
+      .from("users")
+      .select("*")
+      .eq("phone", phone)
+      .single()
+    return data
+  },
+
+  async checkUserByEmail(email: string) {
+    const { data } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single()
+    return data
+  },
+
+  async checkPhoneAndEmailMatch(phone: string, email: string) {
+    const { data } = await supabase
+      .from("users")
+      .select("*")
+      .eq("phone", phone)
+      .eq("email", email)
+      .single()
+    return !!data
+  },
+
+  async createUser(user: {
+    id: string
+    email: string
+    phone: string
+    name: string
+    surname: string
+  }) {
+    const { data, error } = await supabase.from("users").insert([user]).select().single()
+    if (error) {
+      console.error("Error creating user in DB:", error)
+      return null
+    }
+    return data
+  },
+
+  async updatePassword(userId: string) {
+    const { error } = await supabase
+      .from("users")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", userId)
+    return !error
+  },
+}
+
 export const authService = {
-  // Вхід користувача
   async login(phone: string, password: string): Promise<AuthResult> {
     try {
       const user = await userService.checkUserByPhone(phone)
@@ -24,12 +77,15 @@ export const authService = {
         }
       }
 
-      const isPasswordValid = await passwordUtils.verifyPassword(password, user.password_hash)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: password,
+      })
 
-      if (!isPasswordValid) {
+      if (error) {
         return {
           success: false,
-          message: "Хибний пароль",
+          message: "Невірний пароль",
         }
       }
 
@@ -41,10 +97,10 @@ export const authService = {
           email: user.email,
           phone: user.phone,
           name: `${user.name} ${user.surname}`,
+          surname: user.surname,
         },
       }
     } catch (error) {
-      console.error("Login error:", error)
       return {
         success: false,
         message: "Помилка входу в систему",
@@ -52,7 +108,6 @@ export const authService = {
     }
   },
 
-  // Реєстрація користувача
   async register(userData: {
     email: string
     phone: string
@@ -61,194 +116,90 @@ export const authService = {
     surname: string
   }): Promise<AuthResult> {
     try {
-      console.log("Starting registration for:", userData.email)
-
-      // Перевірка чи існує користувач
-      const existingUserByPhone = await userService.checkUserByPhone(userData.phone)
-      const existingUserByEmail = await userService.checkUserByEmail(userData.email)
-
-      if (existingUserByPhone) {
+      const existingPhone = await userService.checkUserByPhone(userData.phone)
+      if (existingPhone) {
         return {
           success: false,
           message: "Користувач з таким номером телефону вже існує",
         }
       }
 
-      if (existingUserByEmail) {
+      const existingEmail = await userService.checkUserByEmail(userData.email)
+      if (existingEmail) {
         return {
           success: false,
           message: "Користувач з такою електронною поштою вже існує",
         }
       }
 
-      // Хешування пароля
-      const passwordHash = await passwordUtils.hashPassword(userData.password)
-      console.log("Password hashed successfully")
+      // Створення облікового запису в Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+      })
 
-      // Створення користувача
-      const newUser = await userService.createUser({
+      if (authError || !authData.user) {
+        return {
+          success: false,
+          message: authError?.message || "Не вдалося створити обліковий запис",
+        }
+      }
+
+      // Додавання до таблиці users
+      const dbUser = await userService.createUser({
+        id: authData.user.id,
         email: userData.email,
         phone: userData.phone,
-        password_hash: passwordHash,
         name: userData.name,
         surname: userData.surname,
       })
 
-      if (!newUser) {
+      if (!dbUser) {
         return {
           success: false,
-          message: "Помилка при створенні користувача",
+          message: "Помилка при створенні користувача в базі",
         }
       }
-
-      console.log("User registered successfully:", newUser.id)
 
       return {
         success: true,
         message: "Успішна реєстрація",
         user: {
-          id: newUser.id,
-          email: newUser.email,
-          phone: newUser.phone,
-          name: `${newUser.name} ${newUser.surname}`,
+          id: dbUser.id,
+          email: dbUser.email,
+          phone: dbUser.phone,
+          name: dbUser.name, // тільки ім'я
+          surname: dbUser.surname,
         },
       }
-    } catch (error) {
-      console.error("Registration error:", error)
-
-      // Детальна обробка помилок Supabase
-      if (error && typeof error === "object" && "code" in error) {
-        if (error.code === "23505") {
-          return {
-            success: false,
-            message: "Користувач з такими даними вже існує",
-          }
-        }
-      }
-
+    } catch (error: any) {
       return {
         success: false,
-        message: "Помилка реєстрації. Спробуйте ще раз",
+        message: error?.message || "Помилка реєстрації. Спробуйте ще раз",
       }
     }
   },
 
-  // Ініціація скидання пароля через Supabase Auth
-  async initiatePasswordReset(email: string): Promise<AuthResult> {
+  async resetPassword(email: string): Promise<{ success: boolean; message: string }> {
     try {
-      // Перевірка чи існує користувач в нашій таблиці
-      const user = await userService.checkUserByEmail(email)
-
-      if (!user) {
-        return {
-          success: false,
-          message: "Користувача з такою поштою не знайдено",
-        }
-      }
-
-      // Відправка email через Supabase Auth
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo:
+          process.env.NODE_ENV === "development"
+            ? "http://localhost:3000/reset-password"
+            : "https://diverso.pp.ua/reset-password",
       })
 
       if (error) {
-        console.error("Supabase reset password error:", error)
-        return {
-          success: false,
-          message: "Помилка при відправці email",
-        }
+        return { success: false, message: "Не вдалося надіслати лист" }
       }
 
-      return {
-        success: true,
-        message: "Код для відновлення пароля відправлено на вашу пошту",
-      }
-    } catch (error) {
-      console.error("Password reset initiation error:", error)
-      return {
-        success: false,
-        message: "Помилка при ініціації скидання пароля",
-      }
+      return { success: true, message: "Лист надіслано" }
+    } catch (err) {
+      return { success: false, message: "Помилка при скиданні пароля" }
     }
   },
 
-  // Підтвердження коду відновлення (спрощений підхід для демо)
-  async verifyResetCode(email: string, token: string): Promise<AuthResult> {
-    try {
-      // Для демо-версії приймаємо будь-який 6-значний код
-      // В продакшені тут має бути реальна перевірка через Supabase
-      if (token.length === 6 && /^\d{6}$/.test(token)) {
-        // Перевіряємо чи існує користувач
-        const user = await userService.checkUserByEmail(email)
-
-        if (!user) {
-          return {
-            success: false,
-            message: "Користувача не знайдено",
-          }
-        }
-
-        return {
-          success: true,
-          message: "Код підтверджено",
-        }
-      }
-
-      return {
-        success: false,
-        message: "Невірний код відновлення",
-      }
-    } catch (error) {
-      console.error("Reset code verification error:", error)
-      return {
-        success: false,
-        message: "Помилка при перевірці коду",
-      }
-    }
-  },
-
-  // Скидання пароля після підтвердження коду
-  async resetPassword(email: string, newPassword: string): Promise<AuthResult> {
-    try {
-      // Хешування нового пароля
-      const newPasswordHash = await passwordUtils.hashPassword(newPassword)
-
-      // Оновлення пароля в нашій таблиці
-      const updateSuccess = await userService.updatePassword(email, newPasswordHash)
-
-      if (!updateSuccess) {
-        return {
-          success: false,
-          message: "Помилка при оновленні пароля",
-        }
-      }
-
-      // Отримання даних користувача для автоматичного входу
-      const user = await userService.checkUserByEmail(email)
-
-      if (!user) {
-        return {
-          success: false,
-          message: "Користувача не знайдено",
-        }
-      }
-
-      return {
-        success: true,
-        message: "Пароль успішно змінено",
-        user: {
-          id: user.id,
-          email: user.email,
-          phone: user.phone,
-          name: `${user.name} ${user.surname}`,
-        },
-      }
-    } catch (error) {
-      console.error("Password reset error:", error)
-      return {
-        success: false,
-        message: "Помилка при скиданні пароля",
-      }
-    }
+  async logout(): Promise<void> {
+    await supabase.auth.signOut()
   },
 }
