@@ -430,33 +430,37 @@ export default function ProfilePage() {
                         } грн
                       </span>
                     </div>
-                    <div className="mt-4 mb-2 flex flex-col gap-1">
-                      <span>
-                        <span className="font-semibold">Трекінг-код:</span>{" "}
-                        {order.shipping?.ttn ? (
-                          <a
-                            href={`https://novaposhta.ua/tracking/?cargo_number=${order.shipping.ttn}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline text-blue-600"
-                          >
-                            {order.shipping.ttn}
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground">Очікується</span>
-                        )}
-                      </span>
-                      <span>
-                        <span className="font-semibold">Статус доставки:</span>{" "}
-                        {order.shipping?.status ? (
-                          order.shipping.status
-                        ) : (
-                          <span className="text-muted-foreground">
-                            Статус доставки буде доступний після відправки замовлення.
-                          </span>
-                        )}
-                      </span>
-                    </div>
+<div className="mt-4 mb-2 flex flex-col gap-1">
+  <span>
+    <span className="font-semibold">Трекінг-код:</span>{" "}
+    {order.shipping?.tracking_code ? (
+      <a
+        href={`https://novaposhta.ua/tracking/?cargo_number=${order.shipping.tracking_code}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline text-blue-600"
+      >
+        {order.shipping.tracking_code}
+      </a>
+    ) : (
+      <span className="text-muted-foreground">Очікується</span>
+    )}
+  </span>
+
+  <span>
+    <span className="font-semibold">Статус доставки:</span>{" "}
+    {order.shipping?.lastHistory?.status ? (
+      order.shipping.lastHistory.status
+    ) : order.shipping?.shipping_status ? (
+      <span className="text-muted-foreground">{order.shipping.shipping_status}</span>
+    ) : (
+      <span className="text-muted-foreground">
+        Статус доставки буде доступний після відправки або синхронізації.
+      </span>
+    )}
+  </span>
+</div>
+
                     <div className="flex justify-start mt-3 relative">
                       {order.status?.alias === "new" ? (
                         <Button
