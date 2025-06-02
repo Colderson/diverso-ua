@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   try {
     const apiRes = await fetch(url, {
       headers: {
-        Authorization: "Bearer ZjM5NjliMDA2ODZjYjAzM2JkOTNiZjQyZDg2NTg1ZmE4MjBkZDZlYQ",
+        Authorization: `Bearer ${process.env.KEYCRM_API_KEY}`,
         Accept: "application/json"
       }
     });

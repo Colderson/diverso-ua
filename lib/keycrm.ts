@@ -1,5 +1,5 @@
 const API_URL = "https://api.keycrm.app/v1";
-const API_KEY = "ZjM5NjliMDA2ODZjYjAzM2JkOTNiZjQyZDg2NTg1ZmE4MjBkZDZlYQ";
+const API_KEY = process.env.KEYCRM_API_KEY!;
 
 async function keycrmFetch(endpoint: string, params?: Record<string, any>) {
   const url = new URL(`${API_URL}${endpoint}`);
@@ -10,8 +10,6 @@ async function keycrmFetch(endpoint: string, params?: Record<string, any>) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
-// Тепер цей fetch звертається до вашого внутрішнього API-роуту
 async function keycrmFetchLocal(endpoint: string, params?: Record<string, any>) {
   const url = new URL(`/api/${endpoint}`, window.location.origin);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, String(v)));
@@ -21,7 +19,7 @@ async function keycrmFetchLocal(endpoint: string, params?: Record<string, any>) 
 }
 
 export async function getCategories() {
-  // Тепер звертаємось до локального API-роуту
+ 
   const all = await keycrmFetchLocal("keycrm-categories", { limit: 50 });
   const parent = all.data.find((c: any) => c.name === "Шкіряні чохли на ID-паспорти");
   if (!parent) return [];

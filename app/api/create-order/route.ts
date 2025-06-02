@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const KEYCRM_API = "https://openapi.keycrm.app/v1"
-const API_KEY = "ZjM5NjliMDA2ODZjYjAzM2JkOTNiZjQyZDg2NTg1ZmE4MjBkZDZlYQ"
+const API_KEY = process.env.KEYCRM_API_KEY!
 
 export async function POST(req: NextRequest) {
   try {

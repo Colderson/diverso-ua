@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     while (hasMore) {
       const apiRes = await fetch(`https://openapi.keycrm.app/v1/products?limit=50&page=${page}`, {
         headers: {
-          Authorization: "Bearer ZjM5NjliMDA2ODZjYjAzM2JkOTNiZjQyZDg2NTg1ZmE4MjBkZDZlYQ",
+          Authorization: `Bearer ${process.env.KEYCRM_API_KEY}`,
           Accept: "application/json"
         }
       });
