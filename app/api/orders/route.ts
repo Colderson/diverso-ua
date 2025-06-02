@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     // 2. Шукаємо замовлення по buyer_id і одразу підтягуємо товари та оффери
     const orderRes = await fetch(
-      `${KEYCRM_API}/order?buyer_id=${buyerId}&include=buyer,shipping,products.offer`,
+      `${KEYCRM_API}/order?buyer_id=${buyerId}&include=buyer,shipping,products.offer,status`,
       {
         headers: {
           Authorization: `Bearer ${API_KEY}`,

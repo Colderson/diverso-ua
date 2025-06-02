@@ -100,7 +100,8 @@ export function AccountModal({ onClose, onLoginSuccess }: AccountModalProps) {
         setFormMode("login")
         setEmail(existingUser.email)
       } else {
-        setFormMode("register")
+        setFormMode("register");
+        setEmail("");
       }
     } catch (error) {
       setNotification({

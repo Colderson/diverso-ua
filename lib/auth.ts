@@ -96,8 +96,8 @@ export const authService = {
           id: user.id,
           email: user.email,
           phone: user.phone,
-          name: `${user.name} ${user.surname}`,
-          surname: user.surname,
+          name: user.name,         // тільки ім'я!
+          surname: user.surname,   // тільки прізвище!
         },
       }
     } catch (error) {

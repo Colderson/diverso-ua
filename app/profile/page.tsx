@@ -12,6 +12,29 @@ import { userService } from "@/lib/supabase"
 import { SmsNotification } from "@/components/sms-notification"
 import { authService } from "@/lib/auth"
 
+const statusMap: Record<string | number, string> = {
+  1: "Нове",
+  2: "Наявність підтверджено",
+  3: "Очікування відповіді на пошту",
+  4: "Очікування передоплати",
+  5: "Передано у виробництво",
+  6: "Виготовляється",
+  7: "Виготовлено",
+  8: "Передано в доставку",
+  9: "Доставляється",
+  10: "Відправляється",
+  11: "В дорозі (зовнішня служба)",
+  12: "Виконано",
+  13: "Некоректні дані",
+  14: "Недозвон",
+  15: "Немає в наявності",
+  16: "Купив в іншому місці",
+  17: "Не влаштувала доставка",
+  18: "Не влаштувала ціна",
+  19: "Скасовано",
+  20: "Відмінено покупцем",
+}
+
 export default function ProfilePage() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -181,6 +204,30 @@ export default function ProfilePage() {
       })
   }, [formData.phone])
 
+  // Додаємо функцію для скасування замовлення
+  const handleCancelOrder = async (orderId: string) => {
+    if (!window.confirm("Ви дійсно хочете скасувати це замовлення?")) return
+    try {
+      const res = await fetch(`/api/orders/${orderId}/cancel`, { method: "POST" })
+      if (res.ok) {
+        setNotification({ message: "Замовлення скасовано", type: "success" })
+        // Оновити список замовлень
+        setOrders(orders =>
+          orders.map(order =>
+            order.id === orderId
+              ? { ...order, status: { ...order.status, name: "Скасовано", alias: "cancelled" } }
+              : order
+          )
+        )
+      } else {
+        const data = await res.json()
+        setNotification({ message: data.error || "Не вдалося скасувати замовлення", type: "error" })
+      }
+    } catch {
+      setNotification({ message: "Помилка при скасуванні замовлення", type: "error" })
+    }
+  }
+
   if (!isLoggedIn) return null
 
   return (
@@ -325,9 +372,14 @@ export default function ProfilePage() {
               )}
               <div className="grid gap-6">
                 {orders.map(order => (
-                  <div key={order.id} className="border rounded-lg bg-white shadow-sm p-4">
-                    <div className="font-semibold mb-2 text-sm">
-                      Замовлення №{order.id}
+                  <div key={order.id} className="border rounded-lg bg-card shadow-sm p-4">
+                    <div className="flex justify-between items-center mb-2 text-sm">
+                      <span className="font-semibold">
+                        Замовлення №{order.id}
+                      </span>
+                      <span className="font-bold text-base text-muted-foreground">
+                        Статус: {statusMap[order.status?.id] || order.status?.name || order.status?.alias || "—"}
+                      </span>
                     </div>
                     <div className="w-full overflow-x-auto">
                       <table className="w-full text-sm mb-2">
@@ -340,7 +392,18 @@ export default function ProfilePage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {order.products?.map((product: { name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; sku: any; offer: { sku: any }; price_sold: any; price: any; quantity: any }, idx: React.Key | null | undefined) => (
+                          {order.products?.map(
+                            (
+                              product: {
+                                name: string
+                                sku?: string
+                                offer?: { sku?: string }
+                                price_sold?: number
+                                price?: number
+                                quantity?: number
+                              },
+                              idx: number
+                            ) => (
                             <tr key={idx} className="border-b last:border-b-0">
                               <td className="py-1">{product.name}</td>
                               <td className="py-1 pl-2">{product.sku || product.offer?.sku || "—"}</td>
@@ -355,7 +418,7 @@ export default function ProfilePage() {
                       <span>
                         {order.created_at?.slice(0, 10) || order.ordered_at?.slice(0, 10)}
                       </span>
-                      <span className="font-bold text-base text-black">
+                      <span className="font-bold text-base text-foreground">
                         Сума: {order.grand_total ??
                           order.products?.reduce(
                             (sum: number, p: { price_sold: any; price: any; quantity: any }) =>
@@ -366,6 +429,59 @@ export default function ProfilePage() {
                           )
                         } грн
                       </span>
+                    </div>
+                    <div className="mt-4 mb-2 flex flex-col gap-1">
+                      <span>
+                        <span className="font-semibold">Трекінг-код:</span>{" "}
+                        {order.shipping?.ttn ? (
+                          <a
+                            href={`https://novaposhta.ua/tracking/?cargo_number=${order.shipping.ttn}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline text-blue-600"
+                          >
+                            {order.shipping.ttn}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">Очікується</span>
+                        )}
+                      </span>
+                      <span>
+                        <span className="font-semibold">Статус доставки:</span>{" "}
+                        {order.shipping?.status ? (
+                          order.shipping.status
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Статус доставки буде доступний після відправки замовлення.
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-start mt-3 relative">
+                      {order.status?.alias === "new" ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="text-xs px-3 py-1"
+                          onClick={() => handleCancelOrder(order.id)}
+                        >
+                          Скасувати замовлення
+                        </Button>
+                      ) : (
+                        <div className="group relative">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="text-xs px-3 py-1 opacity-60 cursor-not-allowed"
+                            disabled
+                          >
+                            Скасувати замовлення
+                          </Button>
+                          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-64 bg-card border border-red-300 text-red-700 text-xs rounded shadow-lg px-3 py-2 z-10 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition">
+                            Статус замовлення не дозволяє його скасувати. Для скасування зверніться за контакним номером телефону зі сторінки або інстаграм.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

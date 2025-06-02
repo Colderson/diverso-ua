@@ -7,7 +7,7 @@ const categories = [
   {
     id: "id-cards",
     name: "idCardCovers",
-    image: "/images/product1.jpeg",
+    image: "/images/product1-1.jpeg",
     link: "/catalog/id-cards",
   },
   {
