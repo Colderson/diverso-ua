@@ -137,7 +137,7 @@ export function ProductDetail({ id }: { id: string }) {
       color: selectedColor ?? undefined,
       sku: currentSku,
     })
-    showNotification(t("addToCart"))
+    showNotification(t("addToCart2"))
   }
 
   const handleAddEngraving = () => {
