@@ -94,7 +94,7 @@ export function ProductGrid({ category, limit, filter, isHomepage = false }: Pro
         "/placeholder.svg",
       sku: product.sku ?? "",
     })
-    showNotification("Товар доданий у кошик")
+    showNotification(t("addToCart2"))
   }
 
   if (products.length === 0) {
