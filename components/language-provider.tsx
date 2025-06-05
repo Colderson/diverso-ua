@@ -35,6 +35,7 @@ const translations: Translations = {
 
   // Product details
   addToCart: { uk: "Додати в кошик", en: "Add to cart" },
+  addToCart2: { uk: "Додано в кошик", en: "Added to cart" },
   addEngraving: { uk: "Додати гравіювання (+170 ₴)", en: "Add Engraving (+170 ₴)" },
   engravingMessage: {
     uk: "Для обговорення гравіювання з Вами зв'яжеться наш менеджер.",
